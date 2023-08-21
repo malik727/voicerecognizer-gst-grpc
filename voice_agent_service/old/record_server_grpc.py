@@ -2,8 +2,8 @@
 
 # grpc imports
 import grpc
-import recognize_pb2
-import recognize_pb2_grpc
+from generated import voice_agent_pb2
+from generated import voice_agent_pb2_grpc
 from concurrent import futures
 
 # wav and vosk recognizer imports
@@ -125,26 +125,27 @@ def voice_recognizer(filename):
         return "Voice not recognized. Please speak again..."
 
 
-class RecognizerServiceServicer(recognize_pb2_grpc.RecognizerServiceServicer):
+class VoiceAgentServicer(voice_agent_pb2_grpc.VoiceAgentServiceServicer):
     def Recognize(self, request, context):
-
-        if request.action == recognize_pb2.RecognizerAction.START:
+        if request.action == voice_agent_pb2.AgentAction.START:
             record_from_microphone()
             result = "Recording..."
-        elif request.action == recognize_pb2.RecognizerAction.STOP:
+        elif request.action == voice_agent_pb2.AgentAction.STOP:
             stop_recording()
             result = voice_recognizer(url)
         else:
             result = "Some exception occured"
-        return recognize_pb2.RecognizerResult(result = result)
+        return voice_agent_pb2.AgentResult(user_command = result)
 
 
 def main():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=5))
-    recognize_pb2_grpc.add_RecognizerServiceServicer_to_server(RecognizerServiceServicer(), server)
+    voice_agent_pb2_grpc.add_VoiceAgentServiceServicer_to_server(VoiceAgentServicer(), server)
     print("Server running now.")
     server.add_insecure_port('[::]:51053')
     server.start()
     server.wait_for_termination()
 
-main()
+
+if __name__ == '__main__':
+    main()
