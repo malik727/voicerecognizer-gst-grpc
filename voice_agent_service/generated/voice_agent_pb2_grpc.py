@@ -14,28 +14,28 @@ class VoiceAgentServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.WaitForWakeWord = channel.unary_stream(
-                '/VoiceAgentService/WaitForWakeWord',
+        self.DetectWakeWord = channel.unary_stream(
+                '/VoiceAgentService/DetectWakeWord',
                 request_serializer=voice__agent__pb2.Empty.SerializeToString,
-                response_deserializer=voice__agent__pb2.WakeWordDetected.FromString,
+                response_deserializer=voice__agent__pb2.WakeWordStatus.FromString,
                 )
-        self.VoiceAgent = channel.unary_unary(
-                '/VoiceAgentService/VoiceAgent',
-                request_serializer=voice__agent__pb2.AgentControl.SerializeToString,
-                response_deserializer=voice__agent__pb2.AgentResult.FromString,
+        self.RecognizeVoiceCommand = channel.unary_unary(
+                '/VoiceAgentService/RecognizeVoiceCommand',
+                request_serializer=voice__agent__pb2.RecognizeControl.SerializeToString,
+                response_deserializer=voice__agent__pb2.RecognizeResult.FromString,
                 )
 
 
 class VoiceAgentServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def WaitForWakeWord(self, request, context):
+    def DetectWakeWord(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def VoiceAgent(self, request, context):
+    def RecognizeVoiceCommand(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -44,15 +44,15 @@ class VoiceAgentServiceServicer(object):
 
 def add_VoiceAgentServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'WaitForWakeWord': grpc.unary_stream_rpc_method_handler(
-                    servicer.WaitForWakeWord,
+            'DetectWakeWord': grpc.unary_stream_rpc_method_handler(
+                    servicer.DetectWakeWord,
                     request_deserializer=voice__agent__pb2.Empty.FromString,
-                    response_serializer=voice__agent__pb2.WakeWordDetected.SerializeToString,
+                    response_serializer=voice__agent__pb2.WakeWordStatus.SerializeToString,
             ),
-            'VoiceAgent': grpc.unary_unary_rpc_method_handler(
-                    servicer.VoiceAgent,
-                    request_deserializer=voice__agent__pb2.AgentControl.FromString,
-                    response_serializer=voice__agent__pb2.AgentResult.SerializeToString,
+            'RecognizeVoiceCommand': grpc.unary_unary_rpc_method_handler(
+                    servicer.RecognizeVoiceCommand,
+                    request_deserializer=voice__agent__pb2.RecognizeControl.FromString,
+                    response_serializer=voice__agent__pb2.RecognizeResult.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -65,7 +65,7 @@ class VoiceAgentService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def WaitForWakeWord(request,
+    def DetectWakeWord(request,
             target,
             options=(),
             channel_credentials=None,
@@ -75,14 +75,14 @@ class VoiceAgentService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/VoiceAgentService/WaitForWakeWord',
+        return grpc.experimental.unary_stream(request, target, '/VoiceAgentService/DetectWakeWord',
             voice__agent__pb2.Empty.SerializeToString,
-            voice__agent__pb2.WakeWordDetected.FromString,
+            voice__agent__pb2.WakeWordStatus.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def VoiceAgent(request,
+    def RecognizeVoiceCommand(request,
             target,
             options=(),
             channel_credentials=None,
@@ -92,8 +92,8 @@ class VoiceAgentService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/VoiceAgentService/VoiceAgent',
-            voice__agent__pb2.AgentControl.SerializeToString,
-            voice__agent__pb2.AgentResult.FromString,
+        return grpc.experimental.unary_unary(request, target, '/VoiceAgentService/RecognizeVoiceCommand',
+            voice__agent__pb2.RecognizeControl.SerializeToString,
+            voice__agent__pb2.RecognizeResult.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

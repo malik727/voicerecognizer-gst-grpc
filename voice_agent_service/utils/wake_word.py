@@ -1,32 +1,31 @@
 import gi
 import vosk
-import time
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GObject
+from gi.repository import Gst, GLib
 
 Gst.init(None)
-GObject.threads_init()
+GLib.threads_init()
 
-class AudioRecorder:
-    def __init__(self, audio_files_basedir, vosk_model_path):
+class WakeWordDetector:
+    def __init__(self, wake_word, stt_model, channels=1, sample_rate=16000, bits_per_sample=16):
+        self.loop = GLib.MainLoop()
         self.pipeline = None
         self.bus = None
-        self.audio_files_basedir = audio_files_basedir
+        self.wake_word = wake_word
         self.wake_word_detected = False
-        self.sample_rate = 16000  # Adjust this based on your needs
-        self.channels = 1
-        self.bits_per_sample = 16
-        self.frame_size = int(self.sample_rate * 0.02)  # 20 ms frame size
-        self.model = vosk.Model(vosk_model_path)
-        self.rec = vosk.KaldiRecognizer(self.model, self.sample_rate)
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.bits_per_sample = bits_per_sample
+        self.frame_size = int(self.sample_rate * 0.02)
+        self.stt_model = stt_model # Speech to text model
         self.buffer_duration = 1  # Buffer audio for atleast 1 second
         self.audio_buffer = bytearray()
     
-    def get_wake_word_detected(self):
+    def get_wake_word_status(self):
         return self.wake_word_detected
 
-    def create_pipeline(self, mode="auto"):
-        print("Creating pipeline in {} mode...".format(mode))
+    def create_pipeline(self):
+        print("Creating pipeline for Wake Word Detection...")
         self.pipeline = Gst.Pipeline()
         autoaudiosrc = Gst.ElementFactory.make("autoaudiosrc", "autoaudiosrc")
         queue = Gst.ElementFactory.make("queue", "queue")
@@ -40,29 +39,22 @@ class AudioRecorder:
         caps.set_value("channels", self.channels)
         capsfilter.set_property("caps", caps)
 
+        appsink = Gst.ElementFactory.make("appsink", "appsink")
+        appsink.set_property("emit-signals", True)
+        appsink.set_property("sync", False)  # Set sync property to False to enable async processing
+        appsink.connect("new-sample", self.on_new_buffer, None)
+
         self.pipeline.add(autoaudiosrc)
         self.pipeline.add(queue)
         self.pipeline.add(audioconvert)
         self.pipeline.add(wavenc)
         self.pipeline.add(capsfilter)
-
-        if mode == "auto":
-            appsink = Gst.ElementFactory.make("appsink", "appsink")
-            appsink.set_property("emit-signals", True)
-            appsink.set_property("sync", False)  # Set sync property to False for async processing
-            appsink.connect("new-sample", self.on_new_buffer, None)
-            self.pipeline.add(appsink)
-            wavenc.link(appsink)
-        elif mode == "manual":
-            filesink = Gst.ElementFactory.make("filesink", "filesink")
-            filesink.set_property("location", f"{self.audio_files_basedir}{int(time.time())}.wav")
-            self.pipeline.add(filesink)
-            wavenc.link(filesink)
+        self.pipeline.add(appsink)
         
         autoaudiosrc.link(queue)
         queue.link(audioconvert)
         audioconvert.link(capsfilter)
-        capsfilter.link(wavenc)
+        capsfilter.link(appsink)
 
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
@@ -80,52 +72,50 @@ class AudioRecorder:
         return Gst.FlowReturn.OK
     
     def process_audio_buffer(self):
-        # Process the accumulated audio data using the recognizer
+        # Process the accumulated audio data using the audio model
         audio_data = bytes(self.audio_buffer)
-        if self.rec.AcceptWaveform(audio_data):
-            self.rec.SetWords(True)
-            text = self.rec.Result()
-            print("Text: ", text)
-            if "hey auto" in text:
+        if self.stt_model.init_rec(audio_data):
+            stt_result = self.stt_model.recognize()
+            print("STT Result: ", stt_result)
+            if self.wake_word in stt_result["text"]:
                 self.wake_word_detected = True
                 print("Wake word detected!")
-                self.stop_recording()  # Stop recording when wake word is detected
+                self.pipeline.send_event(Gst.Event.new_eos())
 
         self.audio_buffer.clear()  # Clear the buffer
 
 
-    def record(self):
+    def start_listening(self):
         self.pipeline.set_state(Gst.State.PLAYING)
-        print("Recording Voice Input...")
+        print("Listening for Wake Word...")
+        self.loop.run()
 
-    def stop_recording(self):
-        print("Stopping recording...")
+
+    def stop_listening(self):
         self.cleanup_pipeline()
-        print("Recording finished...")
+        self.loop.quit()
 
-    def wait_for_wake_word(self):
-        print("Listening for wake word...")
-        self.record()
-    
-    def record_command(self):
-        print("Recording command...")
-        self.record()
-    
-    # this method helps with error handling
+
     def on_bus_message(self, bus, message):
         if message.type == Gst.MessageType.EOS:
             print("End-of-stream message received")
-            self.stop_recording()
+            self.stop_listening()
         elif message.type == Gst.MessageType.ERROR:
             err, debug_info = message.parse_error()
             print(f"Error received from element {message.src.get_name()}: {err.message}")
             print(f"Debugging information: {debug_info}")
-            self.stop_recording()
+            self.stop_listening()
         elif message.type == Gst.MessageType.WARNING:
             err, debug_info = message.parse_warning()
             print(f"Warning received from element {message.src.get_name()}: {err.message}")
             print(f"Debugging information: {debug_info}")
+        elif message.type == Gst.MessageType.STATE_CHANGED:
+            if isinstance(message.src, Gst.Pipeline):
+                old_state, new_state, pending_state = message.parse_state_changed()
+                print(("Pipeline state changed from %s to %s." %
+                       (old_state.value_nick, new_state.value_nick)))
     
+
     def cleanup_pipeline(self):
         if self.pipeline is not None:
             print("Cleaning up pipeline...")

@@ -1,17 +1,17 @@
 syntax = "proto3";
 
 service VoiceAgentService {
-  rpc WaitForWakeWord(Empty) returns (stream WakeWordDetected);
-  rpc VoiceAgent (AgentControl) returns (AgentResult);
+  rpc DetectWakeWord(Empty) returns (stream WakeWordStatus);
+  rpc RecognizeVoiceCommand(RecognizeControl) returns (RecognizeResult);
 }
 
 message Empty {}
 
-message WakeWordDetected {
-  bool wake_word = 1;
+message WakeWordStatus {
+  bool status = 1;
 }
 
-enum AgentAction {
+enum RecordAction {
   START = 0;
   STOP = 1;
 }
@@ -21,9 +21,15 @@ enum NLUModel {
   RASA = 1;
 }
 
-message AgentControl {
-  AgentAction action = 1;
+enum RecordMode {
+  MANUAL = 0;
+  AUTO = 1;
+}
+
+message RecognizeControl {
+  RecordAction action = 1;
   NLUModel nlu_model = 2;
+  RecordMode record_mode = 3;
 }
 
 message IntentSlot {
@@ -31,8 +37,8 @@ message IntentSlot {
   string value = 2;
 }
 
-message AgentResult {
-  string user_command = 1;
-  string user_intent = 2;
+message RecognizeResult {
+  string command = 1;
+  string intent = 2;
   repeated IntentSlot intent_slots = 3;
 }

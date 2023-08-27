@@ -166,5 +166,7 @@ cython_debug/
 # Do not ignore dart files
 !/app/lib/
 
-# model files
-*-model/
+# model and temp files
+*model/
+*commands/
+logs/

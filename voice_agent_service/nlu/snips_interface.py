@@ -18,10 +18,13 @@ class SnipsInterface:
         result = self.engine.parse(preprocessed_text)
         return result
     
-    def process_intent(self, intent):
-        pass
-        # if intent_result['intent']:
-        #     intent = intent_result['intent']['intentName']
-        #     return intent
-        # else:
-        #     return None
+    def process_intent(self, intent_output):
+        intent_actions = {}
+        intent = intent_output['intent']['intentName']
+        slots = intent_output.get('slots', [])
+        for slot in slots:
+            action = slot['entity']
+            value = slot['value']['value']
+            intent_actions[action] = value
+
+        return intent, intent_actions
